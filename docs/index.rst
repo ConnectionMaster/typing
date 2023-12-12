@@ -4,10 +4,10 @@ Static Typing with Python
 
 .. Introduction
 .. ============
-.. 
+..
 .. .. toctree::
 ..    :maxdepth: 2
-.. 
+..
 ..    source/introduction
 
 Guides
@@ -26,11 +26,28 @@ Reference
 
    source/reference
 
+.. seealso::
+
+   The documentation at https://mypy.readthedocs.io/ is relatively accessible
+   and complete. Particularly refer to the "Type System Reference" section of
+   the docs -- since the Python typing system is standardised via PEPs, this
+   information should apply to most Python type checkers.
+
+Specification
+=============
+
+.. toctree::
+   :maxdepth: 2
+
+   spec/index
+
 Indices and tables
 ==================
 
 * :ref:`genindex`
 * :ref:`search`
+
+.. _contact:
 
 Discussions and Support
 =======================
@@ -46,13 +63,13 @@ Type Checkers
 -------------
 
 * `mypy <http://mypy-lang.org/>`_, the reference implementation for type
-  checkers. Supports Python 2 and 3.
+  checkers.
 * `pyre <https://pyre-check.org/>`_, written in OCaml and optimized for
-  performance. Supports Python 3 only.
+  performance.
 * `pyright <https://github.com/microsoft/pyright>`_, a type checker that
-  emphasizes speed. Supports Python 3 only.
+  emphasizes speed.
 * `pytype <https://google.github.io/pytype/>`_, checks and infers types for
-  unannotated code. Supports Python 2 and 3.
+  unannotated code.
 
 Development Environments
 ------------------------
@@ -73,9 +90,19 @@ Linters and Formatters
   `flake8 <https://flake8.pycqa.org/>`_ linter that adds support for type
   stubs.
 
+Type-Hint and Stub Integration
+------------------------------
+
+* `autotyping <https://github.com/JelleZijlstra/autotyping>`_, a tool which infers simple types from their context and inserts them as inline type-hints.
+* `merge_pyi <https://google.github.io/pytype/developers/tools.html#merge_pyi>`_, integrates .pyi signatures as inline type-hints in Python source code.
+  This is a thin wrapper around ``ApplyTypeAnnotationsVisitor`` from `libCST <https://libcst.readthedocs.io/en/latest/>`_.
+
 Typing PEPs
 ===========
 
+https://peps.python.org/topic/typing
+
+* `PEP 482 <https://www.python.org/dev/peps/pep-0482/>`_, literature overview on type hints
 * `PEP 483 <https://www.python.org/dev/peps/pep-0483/>`_, background on type hints
 * `PEP 484 <https://www.python.org/dev/peps/pep-0484/>`_, type hints
 * `PEP 526 <https://www.python.org/dev/peps/pep-0526/>`_, variable annotations and ``ClassVar``
@@ -92,5 +119,16 @@ Typing PEPs
 * `PEP 613 <https://www.python.org/dev/peps/pep-0613/>`_, ``TypeAlias``
 * `PEP 646 <https://www.python.org/dev/peps/pep-0646/>`_, variadic generics and ``TypeVarTuple``
 * `PEP 647 <https://www.python.org/dev/peps/pep-0647/>`_, ``TypeGuard``
-* `PEP 655 <https://www.python.org/dev/peps/pep-0655/>`_ (draft), ``Required`` and ``NotRequired``
-* `PEP 673 <https://www.python.org/dev/peps/pep-0673/>`_ (draft), ``Self``
+* `PEP 649 <https://www.python.org/dev/peps/pep-0649/>`_ (draft), ``from __future__ import co_annotations``
+* `PEP 655 <https://www.python.org/dev/peps/pep-0655/>`_, ``Required`` and ``NotRequired``
+* `PEP 673 <https://www.python.org/dev/peps/pep-0673/>`_, ``Self``
+* `PEP 675 <https://www.python.org/dev/peps/pep-0675/>`_, ``LiteralString``
+* `PEP 677 <https://www.python.org/dev/peps/pep-0677/>`_ (rejected), ``(int, str) -> bool`` callable type syntax
+* `PEP 681 <https://www.python.org/dev/peps/pep-0681/>`_ ``@dataclass_transform()``
+* `PEP 688 <https://www.python.org/dev/peps/pep-0688/>`_ ``Buffer``
+* `PEP 692 <https://www.python.org/dev/peps/pep-0692/>`_ ``Unpack[TypedDict]`` for ``**kwargs``
+* `PEP 695 <https://www.python.org/dev/peps/pep-0695/>`_ ``class Class[T]:`` type parameter syntax
+* `PEP 696 <https://www.python.org/dev/peps/pep-0696/>`_ (draft), defaults for type variables
+* `PEP 698 <https://www.python.org/dev/peps/pep-0698/>`_ ``@override``
+* `PEP 702 <https://www.python.org/dev/peps/pep-0702/>`_ (draft), ``@deprecated()``
+* `PEP 705 <https://www.python.org/dev/peps/pep-0705/>`_ (draft), ``TypedMapping``

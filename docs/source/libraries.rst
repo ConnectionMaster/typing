@@ -4,79 +4,198 @@
 Typing Python Libraries
 ***********************
 
-Much of Python’s popularity can be attributed to the rich collection of
+Much of Python's popularity can be attributed to the rich collection of
 Python libraries available to developers. Authors of these libraries
 play an important role in improving the experience for Python
 developers. This document provides some recommendations and guidance for
 Python library authors.
 
-These recommendations are intended to provide the following benefits:
+Why provide type annotations?
+=============================
 
-1. Consumers of libraries should have a great coding experience with
-   fast and accurate completion suggestions, class and function
-   documentation, signature help (including parameter default values),
-   hover text, and auto-imports. This should happen by default without
-   needing to download extra packages and without any special
-   configuration. These features should be consistent across the Python
-   ecosystem regardless of a developer’s choice of editor, IDE, notebook
-   environment, etc.
-2. Consumers of libraries should be able to rely on complete and
-   accurate type information so static type checkers can detect and
-   report type inconsistencies and other violations of the interface
-   contract.
-3. Library authors should be able to specify a well-defined interface
-   contract that is enforced by tools. This allows a library
-   implementation to evolve and improve without breaking consumers of
-   the library.
-4. Library authors should have the benefits of static type checking to
+Providing type annotations has the following benefits:
+
+1. Type annotations help provide users of libraries a better coding
+   experience by enabling fast and accurate completion suggestions, class and
+   function documentation, signature help, hover text, auto-imports, etc.
+2. Users of libraries are able to use static type checkers to detect issues
+   with their use of libraries.
+3. Type annotations allow library authors to specify an interface contract that
+   is enforced by tools. This lets the library implementation evolve with less
+   fear that users are depending on implementation details. In the event of
+   changes to the library interface, type checkers are able to warn users when
+   their code is affected.
+4. Library authors are able to use static type checking themselves to help
    produce high-quality, bug-free implementations.
 
-Inlined Type Annotations and Type Stubs
-=======================================
+How to provide type annotations?
+================================
 
-`PEP 561 <https://www.python.org/dev/peps/pep-0561/>`__ documents
-several ways type information can be delivered for a library: inlined
-type annotations, type stub files included in the package, a separate
-companion type stub package, and type stubs in the typeshed repository.
-Some of these options fall short on delivering the benefits above. We
-therefore provide the following more specific guidance to library
-authors.
+:pep:`561` documents several ways type information can be provided for a
+library:
+
+- inline type annotations (preferred)
+- type stub files included in the package
+- a separate companion type stub package
+- type stubs in the typeshed repository
+
+Inline type annotations simply refers to the use of annotations within your
+``.py`` files. In contrast, with type stub files, type information lives in
+separate ``.pyi`` files; see :ref:`stubs` and :ref:`writing_stubs` for more
+details.
+
+We recommend using the inline type annotations approach, since it has the
+following benefits:
+
+- Typically requires the least effort to add and maintain
+- Users don't have to download additional packages
+- Always remains consistent with the implementation
+- Allows library authors to type check their own code
+- Allows language servers to show users relevant details about the
+  implementation, such as docstrings and default parameter values
+
+However, there are cases where inlined type annotations are not possible — most
+notably when a library's functionality is implemented in a language
+other than Python.
+
+If you are not interested in providing type annotations for your library, you
+could suggest users to contribute type stubs to the
+`typeshed <https://github.com/python/typeshed>`__ project.
+
+Marking a package as providing type information
+-----------------------------------------------
+
+As specified in :pep:`561`, tools will not treat your package as providing type
+information unless it includes a special ``py.typed`` marker file.
 
 .. note::
-   All libraries should include inlined type annotations for the
-   functions, classes, methods, and constants that comprise the public
-   interface for the library.
+   Before marking a package as providing type information, it is best to ensure
+   that the library's interface is fully annotated. See :ref:`type_completeness`
+   for more details.
 
-Inlined type annotations should be included directly within the source
-code that ships with the package. Of the options listed in PEP 561,
-inlined type annotations offer the most benefits. They typically require
-the least effort to add and maintain, they are always consistent with
-the implementation, and docstrings and default parameter values are
-readily available, allowing language servers to enhance the development
-experience.
+Inline type annotations
+^^^^^^^^^^^^^^^^^^^^^^^
 
-There are cases where inlined type annotations are not possible — most
-notably when a library’s exposed functionality is implemented in a
-language other than Python.
+A typical directory structure would look like:
 
-.. note::
-   Libraries that expose symbols implemented in languages other than
-   Python should include stub (``.pyi``) files that describe the types for
-   those symbols. These stubs should also contain docstrings and default
-   parameter values.
+.. code-block:: text
 
-In many existing type stubs (such as those found in typeshed), default
-parameter values are replaced with with ``...`` and all docstrings are
-removed. We recommend that default values and docstrings remain within
-the type stub file so language servers can display this information to
-developers.
+   setup.py
+   my_great_package/
+      __init__.py
+      stuff.py
+      py.typed
 
-Library Interface
-=================
+It's important to ensure that the ``py.typed`` marker file is included in the
+distributed package. If using ``setuptools``, this can be achieved like so:
 
-`PEP 561 <https://www.python.org/dev/peps/pep-0561/>`__ indicates that a
-``py.typed`` marker file must be included in the package if the author
-wishes to support type checking of their code.
+.. code-block:: python
+
+   from setuptools import setup
+
+   setup(
+      name="my_great_distribution",
+      version="0.1",
+      package_data={"my_great_package": ["py.typed"]},
+      packages=["my_great_package"],
+   )
+
+
+Type stub files included in the package
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+It's possible to include a mix of type stub files (``.pyi``) and inline type
+annotations (``.py``). One use case for including type stub files in your
+package is to provide types for extension modules in your library. A typical
+directory structure would look like:
+
+.. code-block:: text
+
+   setup.py
+   my_great_package/
+      __init__.py
+      stuff.py
+      stuff.pyi
+      py.typed
+
+If using ``setuptools``, we can ensure the ``.pyi`` and ``py.typed`` files are
+included like so:
+
+.. code-block:: python
+
+   from setuptools import setup
+
+   setup(
+      name="my_great_distribution",
+      version="0.1",
+      package_data={"my_great_package": ["py.typed", "stuff.pyi"]},
+      packages=["my_great_package"],
+   )
+
+The presence of ``.pyi`` files does not affect the Python interpreter at runtime
+in any way. However, static type checkers will only look at the ``.pyi`` file and
+ignore the corresponding ``.py`` file.
+
+Companion type stub package
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+These are often referred to as "stub-only" packages. The name of the stub package
+should be the name of the runtime package suffixed with ``-stubs``. The ``py.typed``
+marker file is not necessary for stub-only packages. This approach can be useful
+to develop type stubs independently from your library.
+
+For example:
+
+.. code-block:: text
+
+   setup.py
+   my_great_package-stubs/
+      __init__.pyi
+      stuff.pyi
+
+
+.. code-block:: python
+
+   from setuptools import setup
+
+   setup(
+      name="my_great_package-stubs",
+      version="0.1",
+      package_data={"my_great_package-stubs": ["__init__.pyi", "stuff.pyi"]},
+      packages=["my_great_package-stubs"]
+   )
+
+
+Users are then able to install the stubs-only package separately to provide
+types for the original library.
+
+Inclusion in sdist
+^^^^^^^^^^^^^^^^^^
+
+Note that to ensure inclusion of ``.pyi`` and ``py.typed`` files in an sdist
+(.tar.gz archive), you may also need to modify the inclusion rules in your
+``MANIFEST.in`` (see the
+`packaging guide <https://packaging.python.org/en/latest/guides/using-manifest-in/>`__
+for more details on ``MANIFEST.in``). For example:
+
+.. code-block:: text
+
+   global-include *.pyi
+   global-include py.typed
+
+.. _type_completeness:
+
+How much of my library needs types?
+===================================
+
+A "py.typed" library should aim to be type complete so that type
+checking and inspection can work to their full extent. Here we say that a
+library is “type complete” if all of the symbols
+that comprise its interface have type annotations that refer to types
+that are fully known. Private symbols are exempt.
+
+Library interface (public and private symbols)
+----------------------------------------------
 
 If a ``py.typed`` module is present, a type checker will treat all modules
 within that package (i.e. all files that end in ``.py`` or ``.pyi``) as
@@ -119,13 +238,7 @@ determine the value of ``__all__``.
 -  ``__all__.remove('a')``
 
 Type Completeness
-=================
-
-A “py.typed” library should aim to be type complete so that type
-checking and inspection can work to their full extent. Here we say that a
-library is “type complete” if all of the symbols
-that comprise its interface have type annotations that refer to types
-that are fully known. Private symbols are exempt.
+-----------------
 
 The following are best practice recommendations for how to define “type complete”:
 
@@ -181,7 +294,7 @@ is obvious from the context:
    ``__slots__``.
 
 Examples of known and unknown types
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code:: python
 
@@ -282,38 +395,14 @@ Examples of known and unknown types
    class DictSubclass(dict):
        pass
 
-Verifying Type Completeness
-===========================
-
-Some type checkers provide features that allows library authors to verify type
-completeness for a “py.typed” package. E.g. Pyright has a special
-`command line flag <https://git.io/JPueJ>`_ for this.
-
-Improving Type Completeness
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Here are some tips for increasing the type completeness score for your
-library:
-
--  If your package includes tests or sample code, consider removing them
-   from the distribution. If there is good reason to include them,
-   consider placing them in a directory that begins with an underscore
-   so they are not considered part of your library’s interface.
--  If your package includes submodules that are meant to be
-   implementation details, rename those files to begin with an
-   underscore.
--  If a symbol is not intended to be part of the library’s interface and
-   is considered an implementation detail, rename it such that it begins
-   with an underscore. It will then be considered private and excluded
-   from the type completeness check.
--  If your package exposes types from other libraries, work with the
-   maintainers of these other libraries to achieve type completeness.
+..
+   TODO: consider moving best practices to their own page?
 
 Best Practices for Inlined Types
 ================================
 
 Wide vs. Narrow Types
-~~~~~~~~~~~~~~~~~~~~~
+---------------------
 
 In type theory, when comparing two types that are related to each other,
 the “wider” type is the one that is more general, and the “narrower”
@@ -344,7 +433,7 @@ parameter typed as ``List[Union[str, int]]`` is much more restrictive
 and accepts only a ``List[Union[str, int]]``.
 
 Overloads
-~~~~~~~~~
+---------
 
 If a function or method can return multiple different types and those
 types can be determined based on the presence or types of certain
@@ -354,7 +443,7 @@ are used within a “.py” file, they must appear prior to the function
 implementation, which should not have an ``@overload`` decorator.
 
 Keyword-only Parameters
-~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------
 
 If a function or method is intended to take parameters that are
 specified only by name, use the keyword-only separator (``*``).
@@ -365,7 +454,7 @@ specified only by name, use the keyword-only separator (``*``).
        ...
 
 Annotating Decorators
-~~~~~~~~~~~~~~~~~~~~~
+---------------------
 
 Decorators modify the behavior of a class or a function. Providing
 annotations for decorators is straightforward if the decorator retains
@@ -402,7 +491,7 @@ provide signature assistance. As such, library authors are discouraged
 from creating decorators that mutate function signatures in this manner.
 
 Generic Classes and Functions
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------
 
 Classes and functions that can operate in a generic manner on various
 types should declare themselves as generic using the mechanisms
@@ -412,7 +501,7 @@ should be private to the file that declares it, and should therefore
 begin with an underscore.
 
 Type Aliases
-~~~~~~~~~~~~
+------------
 
 Type aliases are symbols that refer to other types. Generic type aliases
 (those that refer to unspecialized generic classes) are supported by
@@ -437,7 +526,7 @@ annotation.
    StrOrInt: TypeAlias = Union[str, int]
 
 Abstract Classes and Methods
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+----------------------------
 
 Classes that must be subclassed should derive from ``ABC``, and methods
 or properties that must be overridden should be decorated with the
@@ -464,7 +553,7 @@ exception.
          raise NotImplementedError()
 
 Final Classes and Methods
-~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------
 
 Classes that are not intended to be subclassed should be decorated as
 ``@final`` as described in `PEP
@@ -473,7 +562,7 @@ can also be used to specify methods that cannot be overridden by
 subclasses.
 
 Literals
-~~~~~~~~
+--------
 
 Type annotations should make use of the Literal type where appropriate,
 as described in `PEP 586 <https://www.python.org/dev/peps/pep-0586/>`__.
@@ -481,7 +570,7 @@ Literals allow for more type specificity than their non-literal
 counterparts.
 
 Constants
-~~~~~~~~~
+---------
 
 Constant values (those that are read-only) can be specified using the
 Final annotation as described in `PEP
@@ -512,7 +601,7 @@ type annotation would be redundant.
    LATEST_VERSION: Final[Tuple[int, int]] = (4, 5)
 
 Typed Dictionaries, Data Classes, and Named Tuples
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------------------------------
 
 If your library runs only on newer versions of Python, you are
 encouraged to use some of the new type-friendly classes.
@@ -539,7 +628,7 @@ section documents several techniques that can be used to add types while
 maintaining backward compatibility.
 
 Quoted Annotations
-~~~~~~~~~~~~~~~~~~
+------------------
 
 Type annotations for variables, parameters, and return types can be
 placed in quotes. The Python interpreter will then ignore them, whereas
@@ -554,7 +643,7 @@ a type checker will interpret them as type annotations.
       return self._config
 
 Type Comment Annotations
-~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------
 
 Python 3.0 introduced syntax for parameter and return type annotations,
 as specified in `PEP 484 <https://www.python.org/dev/peps/pep-0484/>`__.
@@ -589,7 +678,7 @@ type: .
          ...
 
 typing_extensions
-~~~~~~~~~~~~~~~~~
+-----------------
 
 New type features that require runtime support are typically included in
 the stdlib ``typing`` module. Where possible, these new features are
@@ -597,7 +686,7 @@ back-ported to a runtime library called ``typing_extensions`` that works
 with older Python runtimes.
 
 TYPE_CHECKING
-~~~~~~~~~~~~~
+-------------
 
 The ``typing`` module exposes a variable called ``TYPE_CHECKING`` which
 has a value of False within the Python runtime but a value of True when

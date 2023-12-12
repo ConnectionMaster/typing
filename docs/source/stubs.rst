@@ -77,8 +77,9 @@ see PEP 561 [#pep561]_ for more information. The
 includes stubs for Python's standard library and several third-party
 packages. The stubs for the standard library are usually distributed with type checkers and do not
 require separate installation. Stubs for third-party libraries are
-available on the `Python Package Index <https://pypi.org>`_. A stub package for
-a library called ``widget`` will be called ``types-widget``.
+available on the `Python Package Index <https://pypi.org>`_.
+By convention, a stub package for a library called ``widget`` would be named
+``types-widget``.
 
 Supported Constructs
 ====================
@@ -174,31 +175,30 @@ Type checkers support cyclic imports in stub files.
 Built-in Generics
 -----------------
 
-PEP 585 [#pep585]_ built-in generics are generally supported, with
-the following exceptions [#ts-4820]_:
+PEP 585 [#pep585]_ built-in generics are supported and should be used instead
+of the corresponding types from ``typing``::
 
-* Built-in generics don't work in type aliases.
-* Built-in generics don't work in base classes.
-* ``type`` is not supported.
-* Variable length tuples (``tuple[X, ...]``) are not supported.
+    from collections import defaultdict
 
-In these cases, the appropriate types from ``typing`` must be used.
+    def foo(t: type[MyClass]) -> list[int]: ...
+    x: defaultdict[int]
 
 Using imports from ``collections.abc`` instead of ``typing`` is
-generally possible and recommended.
+generally possible and recommended::
+
+    from collections.abc import Iterable
+
+    def foo(iter: Iterable[int]) -> None: ...
 
 Unions
 ------
 
 Declaring unions with ``Union`` and ``Optional`` is supported by all
-type checkers. With the exception of type aliases [#ts-4819]_, the shorthand syntax
+type checkers. With a few exceptions [#ts-4819]_, the shorthand syntax
 is also supported::
 
     def foo(x: int | str) -> int | None: ...  # recommended
     def foo(x: Union[int, str]) -> Optional[int]: ...  # ok
-
-    TYPE_ALIAS = Union[int, str]  # ok
-    TYPE_ALIAS = int | str  # does not work with all type checkers
 
 Module Level Attributes
 -----------------------
@@ -315,14 +315,15 @@ But::
         def create_it(cls: _T) -> _T: ...  # cls has type _T
 
 PEP 612 [#pep612]_ parameter specification variables (``ParamSpec``)
-are supported in argument and return types, although
-they need to be marked with ``# type: ignore`` to work with all
-type checkers [#ts-4827]_::
+are supported in argument and return types::
 
     _P = ParamSpec("_P")
-    _T = TypeVar("_T")
+    _R = TypeVar("_R")
 
-    def foo(cb: Callable[_P, _T]) -> Callable[_P, _T]: ...  # type: ignore
+    def foo(cb: Callable[_P, _R], *args: _P.args, **kwargs: _P.kwargs) -> _R: ...
+
+However, ``Concatenate`` from PEP 612 is not yet supported; nor is using
+a ``ParamSpec`` to parameterize a generic class.
 
 PEP 647 [#pep647]_ type guards are supported.
 
@@ -353,20 +354,28 @@ type stubs::
 Aliases and NewType
 -------------------
 
-Type checkers should accept module-level and class-level aliases, e.g.::
+Type checkers should accept module-level type aliases, optionally using
+``TypeAlias`` (PEP 613 [#pep613]_), e.g.::
 
   _IntList = list[int]
+  _StrList: TypeAlias = list[str]
+
+Type checkers should also accept regular module-level or class-level aliases,
+e.g.::
+
+  def a() -> None: ...
+  b = a
 
   class C:
       def f(self) -> int: ...
       g = f
 
-An alias to a type may contain type variables. As per PEP 484 [#pep484]_,
+A type alias may contain type variables. As per PEP 484 [#pep484]_,
 all type variables must be substituted when the alias is used::
 
   _K = TypeVar("_K")
   _V = TypeVar("_V")
-  _MyMap = Dict[str, Dict[_K, _V]]
+  _MyMap: TypeAlias = dict[str, dict[_K, _V]]
 
   # either concrete types or other type variables can be substituted
   def f(x: _MyMap[str, _V]) -> _V: ...
@@ -483,7 +492,7 @@ do not get interpreted by type checkers as enum members.
 Yes::
 
     from enum import Enum
-    
+
     class Color(Enum):
         RED: int
         BLUE: int
@@ -500,7 +509,7 @@ Yes::
 No::
 
     from enum import Enum
-    
+
     class Color(Enum):
         RED: int
         BLUE: int
@@ -515,8 +524,6 @@ and should not be used in stubs:
 * Positional-only argument syntax (PEP 570 [#pep570]_). Instead, use
   the syntax described in the section :ref:`supported-functions`.
   [#ts-4972]_
-* ``TypeAlias`` (PEP 613 [#pep613]_). Instead, use a simple
-  assigment to define a type alias. [#ts-4913]_
 
 Type Stub Content
 =================
@@ -759,7 +766,7 @@ should not reject stubs that do not follow these recommendations, but
 linters can warn about them.
 
 Stub files should generally follow the Style Guide for Python Code (PEP 8)
-[#pep8]_. There are a few exceptions, outlined below, that take the
+[#pep8]_ and the :ref:`best-practices`. There are a few exceptions, outlined below, that take the
 different structure of stub files into account and are aimed to create
 more concise files.
 
@@ -803,29 +810,6 @@ No::
         x: int
     class MyError(Exception): ...  # leave an empty line between the classes
 
-Shorthand Syntax
-----------------
-
-Where possible, use shorthand syntax for unions instead of
-``Union`` or ``Optional``. ``None`` should be the last
-element of an union. See the Unions_ section for cases where
-using the shorthand syntax is not possible.
-
-Yes::
-
-    def foo(x: str | int) -> None: ...
-    def bar(x: str | None) -> int | None: ...
-
-No::
-
-    def foo(x: Union[str, int]) -> None: ...
-    def bar(x: Optional[str]) -> Optional[int]: ...
-    def baz(x: None | str) -> None: ...
-
-But the following is still necessary::
-
-    TYPE_ALIAS = Optional[Union[str, int]]
-
 Module Level Attributes
 -----------------------
 
@@ -843,6 +827,8 @@ No::
     y: float = ...
     z = 0  # type: int
     a = ...  # type: int
+
+.. _stub-style-classes:
 
 Classes
 -------
@@ -977,88 +963,11 @@ No::
         forward_reference: 'OtherClass'
     class OtherClass: ...
 
-Types
------
-
-Generally, use ``Any`` when a type cannot be expressed appropriately
-with the current type system or using the correct type is unergonomic.
-
-Use ``float`` instead of ``int | float``.
-Use ``None`` instead of ``Literal[None]``.
-For argument types,
-use ``bytes`` instead of ``bytes | memoryview | bytearray``.
-
-Use ``Text`` in stubs that support Python 2 when something accepts both
-``str`` and ``unicode``. Avoid using ``Text`` in stubs or branches for
-Python 3 only.
-
-Yes::
-
-    if sys.version_info < (3,):
-        def foo(s: Text) -> None: ...
-    else:
-        def foo(s: str, *, i: int) -> None: ...
-    def bar(s: Text) -> None: ...
-
-No::
-
-    if sys.version_info < (3,):
-        def foo(s: unicode) -> None: ...
-    else:
-        def foo(s: Text, *, i: int) -> None: ...
-
-For arguments, prefer protocols and abstract types (``Mapping``,
-``Sequence``, ``Iterable``, etc.). If an argument accepts literally any value,
-use ``object`` instead of ``Any``.
-
-For return values, prefer concrete types (``list``, ``dict``, etc.) for
-concrete implementations. The return values of protocols
-and abstract base classes must be judged on a case-by-case basis.
-
-Yes::
-
-    def map_it(input: Iterable[str]) -> list[int]: ...
-    def create_map() -> dict[str, int]: ...
-    def to_string(o: object) -> str: ...  # accepts any object
-
-No::
-
-    def map_it(input: list[str]) -> list[int]: ...
-    def create_map() -> MutableMapping[str, int]: ...
-    def to_string(o: Any) -> str: ...
-
-Maybe::
-
-    class MyProto(Protocol):
-        def foo(self) -> list[int]: ...
-        def bar(self) -> Mapping[str]: ...
-
-Avoid union return types, since they require ``isinstance()`` checks.
-Use ``Any`` or ``X | Any`` if necessary.
-
-Use built-in generics instead of the aliases from ``typing``,
-where possible. See the section `Built-in Generics`_ for cases,
-where it's not possible to use them.
-
-Yes::
-
-    from collections.abc import Iterable
-
-    def foo(x: type[MyClass]) -> list[str]: ...
-    def bar(x: Iterable[str]) -> None: ...
-
-No::
-
-    from typing import Iterable, List, Type
-
-    def foo(x: Type[MyClass]) -> List[str]: ...
-    def bar(x: Iterable[str]) -> None: ...
-
 NamedTuple and TypedDict
 ------------------------
 
 Use the class-based syntax for ``typing.NamedTuple`` and
-``typing.TypedDict``, following the Classes section of this style guide.
+``typing.TypedDict``, following the :ref:`stub-style-classes` section of this style guide.
 
 Yes::
 
@@ -1101,9 +1010,6 @@ Bugs
 ----
 
 .. [#ts-4819] typeshed issue #4819 -- PEP 604 tracker (https://github.com/python/typeshed/issues/4819)
-.. [#ts-4820] typeshed issue #4820 -- PEP 585 tracker (https://github.com/python/typeshed/issues/4820)
-.. [#ts-4827] typeshed issue #4827 -- PEP 612 tracker (https://github.com/python/typeshed/issues/4827)
-.. [#ts-4913] typeshed issue #4913 -- PEP 613 tracker (https://github.com/python/typeshed/issues/4913)
 .. [#ts-4972] typeshed issue #4972 -- PEP 570 tracker (https://github.com/python/typeshed/issues/4972)
 
 Copyright

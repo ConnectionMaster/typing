@@ -7,3 +7,6 @@ Type System Guides
    :caption: Contents:
 
    libraries
+   writing_stubs
+   unreachable
+   typing_anti_pitch
